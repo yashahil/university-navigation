@@ -171,12 +171,12 @@
     const map = L.map('map', {
       center: [21.4979126, 73.0084284],
       zoom: 17,
-      // minZoom: 17,
+      minZoom: 17,
       maxZoom: 22,
-      // maxBounds: [
-      //   [21.4965, 73.0068], 
-      //   [21.4993, 73.0100] 
-      // ],
+      maxBounds: [
+        [21.4965, 73.0068], 
+        [21.4993, 73.0100] 
+      ],
       maxBoundsViscosity: 1.0 
     });
 
@@ -538,11 +538,13 @@
         const accuracy = pos.coords.accuracy;
         const userLatLng = L.latLng(lat, lng);
 
-        // Update UI
-        document.getElementById("locationStatus").textContent =
-          `🟢 Location found (±${Math.round(accuracy)} m)`;
+        if (!campusBounds.contains(userLatLng)) {
+          document.getElementById("locationStatus").textContent =
+            "⚠️ You are outside campus. Please move closer.";
+          if (userMarker) map.removeLayer(userMarker);
+          return;
+        }
 
-        // Place marker + circle
         if (!userMarker) {
           userMarker = L.marker(userLatLng, {
             icon: L.divIcon({
@@ -557,18 +559,16 @@
           userMarker.setLatLng(userLatLng);
         }
 
-        if (accuracyCircle) map.removeLayer(accuracyCircle);
-        accuracyCircle = L.circle(userLatLng, {
-          radius: accuracy,
-          color: '#007bff',
-          fillColor: '#007bff',
-          fillOpacity: 0.1
-        }).addTo(map);
+        startPoint = {
+          geometry: { type: "Point", coordinates: [lng, lat] },
+          properties: { name: "My Location" }
+        };
 
-        if (destinationLatLng) {
-          startPoint = { geometry: { type: "Point", coordinates: [lng, lat] }, properties: { name: "My Location" } };
+        if (endPoint) {
           calculateRoute();
         }
+
+
       },
       (error) => {
         let reason = "";
@@ -591,12 +591,13 @@
 
     const locateUserBtn = document.getElementById("locateUserBtn");
     locateUserBtn.addEventListener("click", () => {
-      if (endPoint) {
-        const destinationLatLng = getPointLatLng(endPoint);
-        startRealTimeNavigation(destinationLatLng);
-      } else {
-        startRealTimeNavigation(null);
-      }
+
+      stopRealTimeNavigation();
+      startRealTimeNavigation(null);
+
+      document.getElementById("locationStatus").textContent =
+          "🟢 Tracking your location. Click on a room/building to set destination.";
+      
     });
 
   </script>
