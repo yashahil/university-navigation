@@ -524,75 +524,70 @@
       }
     });
 
-    // Real-time location tracking
-    let userMarker = null;
-    let watchId = null;
+      let userMarker = null, accuracyCircle = null, watchId = null;
 
-    function startRealTimeNavigation(destinationLatLng) {
-      if (!navigator.geolocation) {
-        alert("Geolocation is not supported by your browser.");
-        return;
-      }
+  function startRealTimeNavigation(destinationLatLng) {
+    if (!navigator.geolocation) {
+      alert("Geolocation is not supported by your browser.");
+      return;
+    }
+    watchId = navigator.geolocation.watchPosition(
+      (pos) => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        const accuracy = pos.coords.accuracy;
+        const userLatLng = L.latLng(lat, lng);
 
-      watchId = navigator.geolocation.watchPosition(
-        (position) => {
-          const lat = position.coords.latitude;
-          const lng = position.coords.longitude;
-          const userLatLng = L.latLng(lat, lng);
-          console.log(userLatLng)
+        // Update UI
+        document.getElementById("locationStatus").textContent =
+          `🟢 Location found (±${Math.round(accuracy)} m)`;
 
-          // if (!campusBounds.contains(userLatLng)) {
-          //   document.getElementById("locationStatus").textContent =
-          //     "⚠️ You are outside campus. Please move closer.";
-          //   if (userMarker) map.removeLayer(userMarker);
-          //   return;
-          // } else {
-            document.getElementById("locationStatus").textContent = "✅ Inside campus.";
-          // }
-
-          // Place or update user marker
-          if (!userMarker) {
-            userMarker = L.marker(userLatLng, {
-              icon: L.divIcon({
-                className: "user-location",
-                html: '<div style="background-color:#007bff;width:18px;height:18px;border-radius:50%;border:2px solid white;"></div>',
-                iconSize: [18, 18],
-                iconAnchor: [9, 9],
-              })
-            }).addTo(map);
-          } else {
-            userMarker.setLatLng(userLatLng);
-          }
-
-          // Update navigation dynamically
-          if (destinationLatLng) {
-            startPoint = {
-              geometry: { type: "Point", coordinates: [lng, lat] },
-              properties: { name: "My Location" }
-            };
-            calculateRoute(); // recalculates path to destination
-          }
-
-        },
-        (error) => {
-          console.error(error);
-          alert("Unable to get your location."+error);
-        },
-        {
-          enableHighAccuracy: true,
-          maximumAge: 0,
-          timeout: 10000
+        // Place marker + circle
+        if (!userMarker) {
+          userMarker = L.marker(userLatLng, {
+            icon: L.divIcon({
+              className: "user-location",
+              html: '<div style="background-color:#007bff;width:18px;height:18px;border-radius:50%;border:2px solid white;"></div>',
+              iconSize: [18, 18],
+              iconAnchor: [9, 9]
+            })
+          }).addTo(map);
+          map.setView(userLatLng, 19);
+        } else {
+          userMarker.setLatLng(userLatLng);
         }
-      );
-    }
 
-    function stopRealTimeNavigation() {
-      if (watchId) navigator.geolocation.clearWatch(watchId);
-      if (userMarker) {
-        map.removeLayer(userMarker);
-        userMarker = null;
-      }
-    }
+        if (accuracyCircle) map.removeLayer(accuracyCircle);
+        accuracyCircle = L.circle(userLatLng, {
+          radius: accuracy,
+          color: '#007bff',
+          fillColor: '#007bff',
+          fillOpacity: 0.1
+        }).addTo(map);
+
+        if (destinationLatLng) {
+          startPoint = { geometry: { type: "Point", coordinates: [lng, lat] }, properties: { name: "My Location" } };
+          calculateRoute();
+        }
+      },
+      (error) => {
+        let reason = "";
+        if (error.code === error.PERMISSION_DENIED) reason = "Permission denied. Allow location access.";
+        else if (error.code === error.POSITION_UNAVAILABLE) reason = "Position unavailable. Turn on GPS or WiFi.";
+        else if (error.code === error.TIMEOUT) reason = "Request timed out. Try again.";
+        else reason = "Unknown error.";
+        document.getElementById("locationStatus").textContent = `❌ Unable to get location: ${reason}`;
+        console.error("Geolocation error:", error);
+      },
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 }
+    );
+  }
+
+  function stopRealTimeNavigation() {
+    if (watchId) navigator.geolocation.clearWatch(watchId);
+    if (userMarker) { map.removeLayer(userMarker); userMarker = null; }
+    if (accuracyCircle) { map.removeLayer(accuracyCircle); accuracyCircle = null; }
+  }
 
     const locateUserBtn = document.getElementById("locateUserBtn");
     locateUserBtn.addEventListener("click", () => {
