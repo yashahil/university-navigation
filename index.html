@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>University Indoor Navigation</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; /* Modern font */
+      color: #333;
+    }
+
+    #map { height: 100vh; width: 100%; }
+    
+    /* Search and Navigation UI */
+    .search-container {
+      position: absolute;
+      top: 15px; /* Slightly more prominent */
+      left: 15px;
+      z-index: 1000;
+      background: white;
+      padding: 20px; /* Increased padding */
+      border-radius: 10px; /* Softer corners */
+      box-shadow: 0 4px 15px rgba(0,0,0,0.15); /* Stronger shadow */
+      width: 320px; /* Slightly wider */
+      max-width: 90%; /* Responsive width */
+      transition: all 0.3s ease; /* Smooth transitions */
+    }
+
+    @media (max-width: 600px) {
+      .search-container {
+        top: 10px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: calc(100% - 20px); /* Full width with padding */
+        padding: 15px;
+      }
+    }
+    
+    .search-input {
+      width: calc(100% - 16px); /* Account for padding */
+      padding: 10px; /* Larger padding */
+      margin-bottom: 15px; /* More space */
+      border: 1px solid #cceeff; /* Lighter border */
+      border-radius: 6px;
+      font-size: 1rem; /* Readable font size */
+      box-shadow: inset 0 1px 3px rgba(0,0,0,0.05);
+    }
+    
+    .search-results {
+      max-height: 250px; /* Taller results */
+      overflow-y: auto;
+      border: 1px solid #eee;
+      border-radius: 6px;
+      display: none;
+      background-color: #fcfcfc;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    
+    .search-result {
+      padding: 10px 12px; /* Adjusted padding */
+      cursor: pointer;
+      border-bottom: 1px solid #f0f0f0;
+      font-size: 0.95rem;
+      color: #555;
+    }
+    
+    .search-result:last-child {
+      border-bottom: none;
+    }
+    
+    .search-result:hover {
+      background-color: #e6f7ff; /* Light blue hover */
+      color: #0056b3;
+    }
+    
+    .navigation-controls {
+      margin-top: 15px; /* More space */
+      padding-top: 15px;
+      border-top: 1px solid #eee;
+      display: flex; /* Use flexbox for buttons */
+      gap: 10px; /* Space between buttons */
+    }
+    
+    .nav-button {
+      background: #007bff;
+      color: white;
+      border: none;
+      padding: 10px 15px; /* Larger buttons */
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.95rem;
+      flex-grow: 1; /* Make buttons expand */
+      transition: background-color 0.2s ease;
+    }
+    
+    .nav-button:hover {
+      background: #0056b3;
+    }
+    
+    .nav-button:disabled {
+      background: #cccccc;
+      cursor: not-allowed;
+      opacity: 0.7;
+    }
+    
+    #startNavBtn {
+      background-color: #28a745; /* Green for start */
+    }
+    #startNavBtn:hover:not(:disabled) {
+      background-color: #218838;
+    }
+    
+    #endNavBtn {
+      background-color: #dc3545; /* Red for end */
+    }
+    #endNavBtn:hover:not(:disabled) {
+      background-color: #c82333;
+    }
+    
+    #clearNavBtn {
+      background-color: #6c757d; /* Grey for clear */
+    }
+    #clearNavBtn:hover:not(:disabled) {
+      background-color: #5a6268;
+    }
+    
+    .selected-points {
+      margin-top: 15px;
+      font-size: 0.9rem;
+      color: #666;
+      min-height: 1.2em; /* Ensure consistent height */
+    }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  
+  <!-- Search and Navigation Interface -->
+  <div class="search-container">
+    <input type="text" id="searchInput" class="search-input" placeholder="Search for rooms, departments...">
+    <div id="searchResults" class="search-results"></div>
+    
+    <div class="navigation-controls">
+      <button id="startNavBtn" class="nav-button" disabled>Set Start</button>
+      <button id="endNavBtn" class="nav-button" disabled>Set End</button>
+      <button id="clearNavBtn" class="nav-button">Clear Route</button>
+    </div>
+    
+    <div id="selectedPoints" class="selected-points"></div>
+    
+    <div class="location-controls">
+      <button id="locateUserBtn" class="nav-button">Get My Location</button>
+      <div id="locationStatus" class="selected-points"></div>
+    </div>
+
+    <div id="directionsPanel" class="directions-panel" style="display: none;">
+      <h3>Directions</h3>
+      <ol id="directionsList"></ol>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script>
+    const campusBounds = L.latLngBounds(
+      [21.4965, 73.0068], // SW corner
+      [21.4993, 73.0100]  // NE corner
+    );
+    const map = L.map('map', {
+      center: [21.4979126, 73.0084284],
+      zoom: 17,
+      // minZoom: 17,
+      maxZoom: 22,
+      // maxBounds: [
+      //   [21.4965, 73.0068], 
+      //   [21.4993, 73.0100] 
+      // ],
+      maxBoundsViscosity: 1.0 
+    });
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors',
+      maxZoom: 22,
+    }).addTo(map);
+
+    // Global variables for navigation
+    let allPoints = [];
+    let startPoint = null;
+    let endPoint = null;
+    let routeLayer = null;
+    let startMarker = null;
+    let endMarker = null;
+
+    // --- Pathfinding variables ---
+    let graph = {};
+    let nodeCoords = [];
+
+    // Helper: distance between two [lat, lng] points
+    function haversine(a, b) {
+      const toRad = x => x * Math.PI / 180;
+      const R = 6371e3;
+      const dLat = toRad(b[0] - a[0]);
+      const dLng = toRad(b[1] - a[1]);
+      const lat1 = toRad(a[0]);
+      const lat2 = toRad(b[0]);
+      const A = Math.sin(dLat/2)**2 + Math.cos(lat1)*Math.cos(lat2)*Math.sin(dLng/2)**2;
+      return R * 2 * Math.atan2(Math.sqrt(A), Math.sqrt(1-A));
+    }
+
+    // Build graph from lines.geojson
+    fetch('map/lines.geojson')
+      .then(res => res.json())
+      .then(data => {
+        L.geoJSON(data, {
+          style: {
+            color: '#5d5d5d',
+            weight: 3
+          },
+          onEachFeature: (feature, layer) => {
+            const name = feature.properties?.name || "Unnamed Line";
+            layer.bindPopup(name);
+          }
+        }).addTo(map);
+
+        // Build graph
+        data.features.forEach(f => {
+          if (f.geometry.type === 'LineString') {
+            const coords = f.geometry.coordinates.map(c => [c[1], c[0]]); // [lat, lng]
+            for (let i = 0; i < coords.length - 1; i++) {
+              const a = coords[i], b = coords[i+1];
+              const aKey = a.join(','), bKey = b.join(',');
+              if (!graph[aKey]) { graph[aKey] = []; nodeCoords.push(a); }
+              if (!graph[bKey]) { graph[bKey] = []; nodeCoords.push(b); }
+              const dist = haversine(a, b);
+              graph[aKey].push({ node: bKey, dist, coord: b, properties: f.properties });
+              graph[bKey].push({ node: aKey, dist, coord: a, properties: f.properties });
+            }
+          }
+        });
+      });
+
+    // Find nearest node in graph to a [lat, lng]
+    function findNearestNode(latlng) {
+      let minDist = Infinity, nearest = null;
+      nodeCoords.forEach(coord => {
+        const d = haversine([latlng.lat, latlng.lng], coord);
+        if (d < minDist) {
+          minDist = d;
+          nearest = coord;
+        }
+      });
+      return nearest ? nearest.join(',') : null;
+    }
+
+    // Dijkstra's algorithm
+    function dijkstra(startKey, endKey) {
+      const dist = {}, prev = {}, Q = new Set(Object.keys(graph));
+      Object.keys(graph).forEach(k => dist[k] = Infinity);
+      dist[startKey] = 0;
+      while (Q.size) {
+        let u = null, min = Infinity;
+        Q.forEach(k => { if (dist[k] < min) { min = dist[k]; u = k; } });
+        if (u === endKey || min === Infinity) break;
+        Q.delete(u);
+        graph[u].forEach(({ node, dist: d }) => {
+          if (Q.has(node)) {
+            const alt = dist[u] + d;
+            if (alt < dist[node]) {
+              dist[node] = alt;
+              prev[node] = u;
+            }
+          }
+        });
+      }
+      // Reconstruct path
+      const path = [];
+      let u = endKey;
+      while (u && prev[u]) { path.unshift(u); u = prev[u]; }
+      if (u === startKey) path.unshift(u);
+      return path;
+    }
+
+    // Load points.geojson (departments, rooms, etc.)
+    fetch('map/map.geojson')
+      .then(res => res.json())
+      .then(data => {
+        allPoints = data.features;
+        
+        L.geoJSON(data, {
+          pointToLayer: (feature, latlng) => {
+            return L.circleMarker(latlng, {
+              radius: 6,
+              fillColor: 'red',
+              color: '#fff',
+              weight: 1,
+              opacity: 1,
+              fillOpacity: 0.9
+            });
+          },
+
+          style: feature => {
+            const type = feature.geometry.type;
+            if (type === "Polygon") {
+              return {
+                color: "#5d5d5d",        // border color
+                fillColor: "#c3c1bd", // fill color
+                fillOpacity: 0.5,
+                weight: 1
+              };
+            } 
+          },
+
+          onEachFeature: (feature, layer) => {
+            const name = feature.properties?.name || "Unnamed Point";
+            layer.bindPopup(name);
+            
+            // Add click handler for navigation
+            layer.on('click', () => {
+              if (!startPoint) {
+                setStartPoint(feature);
+              } else if (!endPoint) {
+                setEndPoint(feature);
+              }
+            });
+          }
+        }).addTo(map);
+      });
+
+    // Search functionality
+    const searchInput = document.getElementById('searchInput');
+    const searchResults = document.getElementById('searchResults');
+    
+    searchInput.addEventListener('input', () => {
+      const query = searchInput.value.toLowerCase();
+      if (query.length < 2) {
+        searchResults.style.display = 'none';
+        return;
+      }
+      
+      const filteredPoints = allPoints.filter(point => {
+        const name = point.properties?.name || '';
+        return name.toLowerCase().includes(query);
+      });
+      
+      displaySearchResults(filteredPoints);
+    });
+    
+    function displaySearchResults(points) {
+      searchResults.innerHTML = '';
+      if (points.length === 0) {
+        searchResults.innerHTML = '<div class="search-result">No results found</div>';
+      } else {
+        points.forEach(point => {
+          const div = document.createElement('div');
+          div.className = 'search-result';
+          div.textContent = point.properties?.name || 'Unnamed Point';
+          div.addEventListener('click', () => {
+            const latlng = getPointLatLng(point);
+            if (latlng) {
+              map.setView(latlng, 19);
+              searchInput.value = point.properties?.name || '';
+              searchResults.style.display = 'none';
+            }
+          });
+          searchResults.appendChild(div);
+        });
+      }
+      searchResults.style.display = 'block';
+    }
+    
+    // Helper function to get latlng from different geometry types
+    function getPointLatLng(feature) {
+      const geometry = feature.geometry;
+      if (geometry.type === 'Point') {
+        return L.latLng(geometry.coordinates[1], geometry.coordinates[0]);
+      } else if (geometry.type === 'Polygon') {
+        // Use the centroid of the polygon
+        const coords = geometry.coordinates[0];
+        let lat = 0, lng = 0;
+        coords.forEach(coord => {
+          lat += coord[1];
+          lng += coord[0];
+        });
+        return L.latLng(lat / coords.length, lng / coords.length);
+      }
+      return null;
+    }
+    
+    // --- Replace calculateRoute to use pathfinding ---
+    function calculateRoute() {
+      if (!startPoint || !endPoint) return;
+      const startLatlng = getPointLatLng(startPoint);
+      const endLatlng = getPointLatLng(endPoint);
+      if (!startLatlng || !endLatlng) return;
+      if (routeLayer) { map.removeLayer(routeLayer); }
+      // Find nearest nodes
+      const startKey = findNearestNode(startLatlng);
+      const endKey = findNearestNode(endLatlng);
+      if (!startKey || !endKey) return;
+      // Find path
+      const pathKeys = dijkstra(startKey, endKey);
+      if (pathKeys.length < 2) return;
+      // Convert keys to latlngs
+      const pathLatLngs = pathKeys.map(k => {
+        const [lat, lng] = k.split(',').map(Number);
+        return L.latLng(lat, lng);
+      });
+      // Add start/end points
+      pathLatLngs.unshift(startLatlng);
+      pathLatLngs.push(endLatlng);
+      routeLayer = L.polyline(pathLatLngs, {
+        color: 'blue',
+        weight: 4,
+        opacity: 1,
+      }).addTo(map);
+      const bounds = L.latLngBounds(pathLatLngs);
+      map.fitBounds(bounds, { padding: [20, 20] });
+    }
+    
+    // Navigation functionality
+    const startNavBtn = document.getElementById('startNavBtn');
+    const endNavBtn = document.getElementById('endNavBtn');
+    const clearNavBtn = document.getElementById('clearNavBtn');
+    const selectedPoints = document.getElementById('selectedPoints');
+    
+    function setStartPoint(feature) {
+      startPoint = feature;
+      const latlng = getPointLatLng(feature);
+      if (!latlng) return;
+      
+      if (startMarker) {
+        map.removeLayer(startMarker);
+      }
+      
+      startMarker = L.marker(latlng, {
+        icon: L.divIcon({
+          className: 'custom-div-icon',
+          html: '<div style="background-color: #28a745; width: 20px; height: 20px; border-radius: 50%; border: 3px solid white;"></div>',
+          iconSize: [20, 20],
+          iconAnchor: [10, 10]
+        })
+      }).addTo(map);
+      
+      startNavBtn.disabled = true;
+      endNavBtn.disabled = false;
+      updateSelectedPoints();
+    }
+    
+    function setEndPoint(feature) {
+      endPoint = feature;
+      const latlng = getPointLatLng(feature);
+      if (!latlng) return;
+      
+      if (endMarker) {
+        map.removeLayer(endMarker);
+      }
+      
+      endMarker = L.marker(latlng, {
+        icon: L.divIcon({
+          className: 'custom-div-icon',
+          html: '<div style="background-color: #dc3545; width: 20px; height: 20px; border-radius: 50%; border: 3px solid white;"></div>',
+          iconSize: [20, 20],
+          iconAnchor: [10, 10]
+        })
+      }).addTo(map);
+      
+      endNavBtn.disabled = true;
+      calculateRoute();
+      updateSelectedPoints();
+    }
+    
+    function updateSelectedPoints() {
+      let text = '';
+      if (startPoint) {
+        text += `Start: ${startPoint.properties?.name || 'Unnamed'}`;
+      }
+      if (endPoint) {
+        text += text ? ` | End: ${endPoint.properties?.name || 'Unnamed'}` : `End: ${endPoint.properties?.name || 'Unnamed'}`;
+      }
+      selectedPoints.textContent = text;
+    }
+    
+    function clearRoute() {
+      startPoint = null;
+      endPoint = null;
+      
+      if (startMarker) {
+        map.removeLayer(startMarker);
+        startMarker = null;
+      }
+      if (endMarker) {
+        map.removeLayer(endMarker);
+        endMarker = null;
+      }
+      if (routeLayer) {
+        map.removeLayer(routeLayer);
+        routeLayer = null;
+      }
+      
+      startNavBtn.disabled = false;
+      endNavBtn.disabled = true;
+      selectedPoints.textContent = '';
+    }
+    
+    // Event listeners
+    startNavBtn.addEventListener('click', () => {
+      if (startPoint) return;
+      alert('Click on a point on the map to set as start point');
+    });
+    
+    endNavBtn.addEventListener('click', () => {
+      if (endPoint) return;
+      alert('Click on a point on the map to set as end point');
+    });
+    
+    clearNavBtn.addEventListener('click', clearRoute);
+    
+    // Close search results when clicking outside
+    document.addEventListener('click', (e) => {
+      if (!searchInput.contains(e.target) && !searchResults.contains(e.target)) {
+        searchResults.style.display = 'none';
+      }
+    });
+
+    // Real-time location tracking
+    let userMarker = null;
+    let watchId = null;
+
+    function startRealTimeNavigation(destinationLatLng) {
+      if (!navigator.geolocation) {
+        alert("Geolocation is not supported by your browser.");
+        return;
+      }
+
+      watchId = navigator.geolocation.watchPosition(
+        (position) => {
+          const lat = position.coords.latitude;
+          const lng = position.coords.longitude;
+          const userLatLng = L.latLng(lat, lng);
+          console.log(userLatLng)
+
+          // if (!campusBounds.contains(userLatLng)) {
+          //   document.getElementById("locationStatus").textContent =
+          //     "⚠️ You are outside campus. Please move closer.";
+          //   if (userMarker) map.removeLayer(userMarker);
+          //   return;
+          // } else {
+            document.getElementById("locationStatus").textContent = "✅ Inside campus.";
+          // }
+
+          // Place or update user marker
+          if (!userMarker) {
+            userMarker = L.marker(userLatLng, {
+              icon: L.divIcon({
+                className: "user-location",
+                html: '<div style="background-color:#007bff;width:18px;height:18px;border-radius:50%;border:2px solid white;"></div>',
+                iconSize: [18, 18],
+                iconAnchor: [9, 9],
+              })
+            }).addTo(map);
+          } else {
+            userMarker.setLatLng(userLatLng);
+          }
+
+          // Update navigation dynamically
+          if (destinationLatLng) {
+            startPoint = {
+              geometry: { type: "Point", coordinates: [lng, lat] },
+              properties: { name: "My Location" }
+            };
+            calculateRoute(); // recalculates path to destination
+          }
+
+        },
+        (error) => {
+          console.error(error);
+          alert("Unable to get your location."+error);
+        },
+        {
+          enableHighAccuracy: true,
+          maximumAge: 0,
+          timeout: 10000
+        }
+      );
+    }
+
+    function stopRealTimeNavigation() {
+      if (watchId) navigator.geolocation.clearWatch(watchId);
+      if (userMarker) {
+        map.removeLayer(userMarker);
+        userMarker = null;
+      }
+    }
+
+    const locateUserBtn = document.getElementById("locateUserBtn");
+    locateUserBtn.addEventListener("click", () => {
+      if (endPoint) {
+        const destinationLatLng = getPointLatLng(endPoint);
+        startRealTimeNavigation(destinationLatLng);
+      } else {
+        startRealTimeNavigation(null);
+      }
+    });
+
+  </script>
+</body>
+</html>
