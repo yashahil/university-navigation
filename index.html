@@ -538,13 +538,6 @@
         const accuracy = pos.coords.accuracy;
         const userLatLng = L.latLng(lat, lng);
 
-        if (!campusBounds.contains(userLatLng)) {
-          document.getElementById("locationStatus").textContent =
-            "⚠️ You are outside campus. Please move closer.";
-          if (userMarker) map.removeLayer(userMarker);
-          return;
-        }
-
         if (!userMarker) {
           userMarker = L.marker(userLatLng, {
             icon: L.divIcon({
