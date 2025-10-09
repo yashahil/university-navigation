@@ -1,0 +1,1305 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>University Indoor Navigation</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css"/>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; /* Modern font */
+      color: #333;
+    }
+
+    #map { height: 100vh; width: 100%; }
+    
+    
+.sidebar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 400px;
+  max-width: 90%;
+  height: 100vh;
+  background: #ffffff;
+  border-left: 1px solid #ddd;
+  box-shadow: -2px 0 10px rgba(0,0,0,0.2);
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  display: none; /* hidden by default */
+  overflow-y: auto;
+  z-index: 1000;
+}
+
+.sidebar-content{
+  width: 100%;
+}
+
+.sidebar-content img {
+  width: 100%;
+  height: 300px;
+  object-fit: cover;
+}
+
+.sidebar-content h2 {
+  margin: 10px 0 10px 0;
+  font-size: 22px;
+  font-weight: 600;
+  color: #222;
+  padding-bottom: 5px;
+  padding-left: 15px;
+}
+
+.sidebar-content p {
+  font-size: 14px;
+  line-height: 1.6;
+  color: #555;
+  padding-bottom: 10px;
+  padding-left: 25px;
+  margin: 8px 0;
+  border-bottom: 1px solid #ccc;
+}
+
+
+.search-container {
+  position: absolute;
+  top: 0;
+  margin: 15px 10px;
+  width: 380px;
+  max-width: 90%;
+  z-index: 1000;
+}
+
+.leaflet-control-container{
+  display: none !important;
+}
+.search-box {
+  display: flex;
+  align-items: center;
+  border: 1px solid #ccc;
+  border-radius: 20px;
+  background: #fff;
+  padding: 5px 10px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+}
+
+.search-box input {
+  flex: 1;
+  border: none;
+  outline: none;
+  padding: 8px;
+  font-size: 14px;
+  border-radius: 4px;
+}
+
+.search-box button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 18px;
+  margin-left: 5px;
+  color: #555;
+}
+
+.dropdown {
+  position: absolute;
+  top: 110%;
+  left: 0;
+  width: 100%;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+  overflow: hidden;
+  display: none;
+  z-index: 1000;
+}
+
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  padding: 10px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.dropdown-item:hover {
+  background: #f0f0f0;
+}
+
+.dropdown-item .icon {
+  font-size: 20px;
+  margin-right: 10px;
+  color: #555;
+}
+
+.dropdown-item .text strong {
+  display: block;
+  font-size: 14px;
+  color: #333;
+}
+
+.dropdown-item .text small {
+  font-size: 12px;
+  color: #777;
+}
+
+.sidebar-content .get-direction-btn {
+  width: calc(100% - 20px);
+  display: inline-block;
+  padding: 10px 18px;
+  background: #007bff;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 600;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.3s ease;
+  box-shadow: 0 3px 6px rgba(0, 123, 255, 0.3);
+  margin: 10px;
+}
+
+.sidebar-content .get-direction-btn:hover {
+  background: #0056b3;
+  box-shadow: 0 4px 8px rgba(0, 123, 255, 0.4);
+  transform: translateY(-1px);
+}
+
+.sidebar-content .get-direction-btn:active {
+  transform: scale(0.97);
+}
+
+.info-section {
+  margin-top: 8px;
+  border-top: 1px solid #ccc;
+  margin-bottom: 16px;
+  padding: 15px;
+}
+
+.info-section h3 {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0 0 8px;
+  color: #007bff;
+  border-left: 4px solid #007bff;
+  padding-left: 6px;
+}
+
+.info-section ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.info-section li {
+  background: #f7f9fc;
+  margin: 4px 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #444;
+  transition: background 0.2s ease;
+}
+
+.info-section li:hover {
+  background: #eaf1ff;
+}
+
+/* Sidebar Container */
+.direction-sidebar {
+  display: none;
+  position: fixed;
+  top: 0px;
+  left: 0;
+  width: 410px;
+  height: 100%;
+  background: #fff;
+  box-shadow: -4px 6px 16px rgba(0,0,0,0.1);
+  padding: 20px;
+  font-family: "Segoe UI", Roboto, Arial, sans-serif;
+  overflow-y: auto;
+  z-index: 1000;
+  transition: all 0.3s ease;
+}
+
+.getdirection{
+  box-shadow: 0px 15px 10px -15px #111;
+}
+
+/* Sidebar Headings */
+.direction-sidebar h2 {
+  font-size: 20px;
+  font-weight: 600;
+  margin-top: 26px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #222;
+}
+
+/* Inputs */
+.direction-sidebar input[type="text"] {
+  width: calc(100% - 25px);
+  padding: 15px 12px;
+  margin-bottom: 12px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  font-size: 14px;
+  transition: 0.2s;
+}
+
+.direction-sidebar input[type="text"]:focus {
+  border-color: #a9dde9;
+  box-shadow: 0 0 6px rgba(0,123,255,0.3);
+  outline: none;
+}
+
+.suggested-places {
+  width: 100%;
+  max-height: 300px;
+  overflow-y: auto;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  padding: 4px 0;
+}
+
+.suggestion-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.suggestion-item:hover {
+  background-color: #f5f5f5;
+}
+
+.suggestion-item .icon {
+  flex-shrink: 0;
+  font-size: 20px;
+  transition: all 0.3s ease;
+}
+
+.suggestion-item .icon i.fa-map-marker-alt {
+  color: #ff4d4f; /* modern red */
+  text-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+.suggestion-item .icon i.fa-clock {
+  color: #1890ff; /* modern blue */
+  text-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+.suggestion-item:hover .icon i {
+  transform: scale(1.2);
+}
+
+.suggestion-item .text {
+  display: flex;
+  flex-direction: column;
+}
+
+.suggestion-item .text strong {
+  font-weight: 600;
+  font-size: 14px;
+  color: #333;
+}
+
+.suggestion-item .text small {
+  font-size: 12px;
+  color: #666;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Container for the route information */
+.route-info {
+    /* Optional: Sets a reasonable max-width to constrain the content */
+    max-width: 350px; 
+    padding: 10px 0;
+    color: #333; /* Dark text color */
+    font-family: Arial, sans-serif; /* Common web font */
+}
+
+/* Styles for the Distance line */
+.route-distance {
+    display: flex; /* Makes the content and distance align horizontally */
+    justify-content: space-between; /* Pushes the distance value to the far right */
+    align-items: center; /* Vertically centers text */
+    font-size: 15px;
+    margin-bottom: 5px; /* Space before the time section */
+}
+
+.route-distance strong {
+    /* Ensures the distance value is bolded */
+    font-weight: bold;
+}
+
+/* Styles for the Time section containing all travel modes */
+.route-time {
+    display: flex; 
+    flex-direction: column; /* Stacks the travel modes vertically */
+    gap: 5px; /* Adds space between the walking, cycling, and driving lines */
+    font-size: 15px;
+}
+
+/* Styles for each individual travel mode (walking, cycling, driving) */
+.route-time span {
+    display: flex; /* Enables Flexbox for icon/label and time */
+    justify-content: space-between; /* Pushes the time value to the far right */
+    align-items: center;
+}
+
+.route-time strong {
+    /* Ensures the time values (e.g., 10 min) are bolded */
+    font-weight: bold;
+}
+
+
+.travel-modes ul {
+  border-radius: 8px;
+  border: 1px solid #000000;
+  padding-inline-start: 0px;
+  list-style: none;
+  margin: 40px 0;
+  display: flex;
+  justify-content: space-between;
+}
+
+.travel-modes li {
+  display: flex;
+  align-items: center;
+  justify-content: space-evenly;
+  gap: 5px;
+  padding: 12px;
+  width: 100%;
+  border-radius: 8px;
+  background: transparent;
+  cursor: pointer;
+  transition: background 0.2s ease;
+  position: relative;
+  flex: 1;  
+  text-align: center;
+}
+
+.travel-modes li.active{
+  background-color: #a9dde9;
+}
+
+.travel-modes li:not(.active):hover {
+  background-color: #e8e8e8;
+}
+
+.travel-modes i {
+  font-size: 18px;
+  color: #000000;
+}
+
+/* Scrollbar Styling */
+.direction-sidebar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.direction-sidebar::-webkit-scrollbar-thumb {
+  background-color: rgba(0,0,0,0.2);
+  border-radius: 3px;
+}
+
+.direction-sidebar::-webkit-scrollbar-track {
+  background: #f0f0f0;
+  border-radius: 3px;
+}
+
+.close-btn {
+  position: absolute;
+  top: 14px;
+  right: 12px;
+  font-size: 14px;
+  font-weight: bold;
+  color: #555;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+}
+
+/* Hover effect: circular background with color */
+.close-btn:hover {
+  background-color: #a9dde9;
+  color: #000;
+  transform: scale(1.1);
+}
+
+@media screen and (max-width: 500px) {
+  .direction-sidebar {
+    width: 80%;
+  }
+}
+  </style>
+</head>
+<body>
+  <button id="locateUserBtn" class="nav-button" style="display: none;">Get My Location</button>
+  <div id="map"></div>
+  <div id="infoSidebar" class="sidebar">
+    
+    <div class="sidebar-content"></div>
+  </div>
+  
+
+  <div class="search-container">
+  <div class="search-box">
+    <input type="text" id="searchInput" placeholder="Search University" autocomplete="off">
+    <button class="search-btn"><i class="fa-solid fa-magnifying-glass"></i></button>
+    <button class="direction-btn" id="directionbtn"><i class="fa-solid fa-diamond-turn-right"></i></button>
+    <button id="closeSidebar" style="display: none;"><i class="fa-solid fa-xmark"></i></button>
+  </div>
+  <div class="dropdown" id="searchDropdown">
+    <div class="dropdown-item" onclick="showFeatureByName('Chanakya Bhavan')">
+      <span class="icon">&#128293;</span>
+      <div class="text">
+        <strong>Chanakya Bhavan</strong>
+        <small>Admin Block</small>
+      </div>
+    </div>
+    <div class="dropdown-item" onclick="showFeatureByName('Kapil Dev Cricket Ground')">
+      <span class="icon">&#128293;</span>
+      <div class="text">
+        <strong>Kapil Dev Cricket Ground</strong>
+        <small>Cricket Ground</small>
+      </div>
+    </div>
+    <div class="dropdown-item" onclick="showFeatureByName('Major Dhyan Chand Arena')">
+      <span class="icon">&#128293;</span>
+      <div class="text">
+        <strong>Major Dhyan Chand Arena</strong>
+        <small>Turf</small>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="directionSidebar" class="direction-sidebar">
+  <span id="closedirectionSidebar" class="close-btn"><i class="fa-solid fa-xmark"></i></span>
+
+  <div class="travel-modes">
+    <ul>
+      <li data-mode="driving" class="active"><i class="fa-solid fa-car"></i></li>
+      <li data-mode="walking"><i class="fa-solid fa-person-walking"></i></li>
+      <li data-mode="cycling"><i class="fa-solid fa-bicycle"></i></li>
+    </ul>
+  </div>
+
+  <div class="getdirection">
+    <h2><i class="fa-solid fa-route"></i> Get Directions</h2>
+    <input type="text" id="startInput" placeholder="Choose Starting Point" autocomplete="off" />
+    <input type="text" id="destInput" placeholder="Choose Destination..." autocomplete="off" />
+  </div>
+
+  <div class="suggested-places" id="suggested-places" style="display:none;"></div>
+  <div id="routeInfo" style="margin-top:12px;font-size:14px; display: none;"></div>
+
+</div>
+
+
+
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script>
+    const universityBoundary = [
+            [
+              73.00428662588948,
+              21.498383521069286
+            ],
+            [
+              73.00408309313622,
+              21.49838556172648
+            ],
+            [
+              73.00408055715542,
+              21.49835370783984
+            ],
+            [
+              73.00412113284216,
+              21.49835370783984
+            ],
+            [
+              73.00416551249953,
+              21.498351348292005
+            ],
+            [
+              73.00422257205966,
+              21.49833247191033
+            ],
+            [
+              73.00426061176557,
+              21.498312415752608
+            ],
+            [
+              73.00428977554057,
+              21.49829117981828
+            ],
+            [
+              73.00431513534494,
+              21.498262865234395
+            ],
+            [
+              73.00434176314036,
+              21.498220393346955
+            ],
+            [
+              73.0043658549537,
+              21.4981791012231
+            ],
+            [
+              73.00436712294345,
+              21.498141348413796
+            ],
+            [
+              73.00436458696396,
+              21.498096516940123
+            ],
+            [
+              73.0043569790227,
+              21.49805876410943
+            ],
+            [
+              73.00434049514934,
+              21.49802691015003
+            ],
+            [
+              73.00431620388949,
+              21.497990922833083
+            ],
+            [
+              73.00444653593209,
+              21.49794074424591
+            ],
+            [
+              73.00436114597332,
+              21.497823660809146
+            ],
+            [
+              73.00503543100123,
+              21.496830794544678
+            ],
+            [
+              73.00543092133827,
+              21.49595265977365
+            ],
+            [
+              73.00627754323398,
+              21.494443157876873
+            ],
+            [
+              73.00834146286925,
+              21.496200089665663
+            ],
+            [
+              73.00862710298594,
+              21.495895660145678
+            ],
+            [
+              73.01050445877684,
+              21.497665737197096
+            ],
+            [
+              73.01084203346048,
+              21.49728882816116
+            ],
+            [
+              73.01530629306808,
+              21.49770974808861
+            ],
+            [
+              73.01461432860813,
+              21.50001780730166
+            ],
+            [
+              73.0135808307299,
+              21.50064597670125
+            ],
+            [
+              73.01231208407194,
+              21.500674967241594
+            ],
+            [
+              73.01165251507442,
+              21.501245149311217
+            ],
+            [
+              73.00788583543289,
+              21.500917379130584
+            ],
+            [
+              73.00805202604599,
+              21.499153669145556
+            ],
+            [
+              73.00619164745189,
+              21.49908550451022
+            ],
+            [
+              73.00613966741298,
+              21.499480211693523
+            ],
+            [
+              73.00428662588948,
+              21.498383521069286
+            ]
+];
+
+const uniLatLngs = universityBoundary.map(([lng, lat]) => [lat, lng]);
+
+/* ensure polygon is closed (first == last) */
+if (
+  uniLatLngs.length > 1 &&
+  (uniLatLngs[0][0] !== uniLatLngs[uniLatLngs.length - 1][0] ||
+   uniLatLngs[0][1] !== uniLatLngs[uniLatLngs.length - 1][1])
+) {
+  uniLatLngs.push(uniLatLngs[0]);
+}
+
+const bounds = L.latLngBounds(uniLatLngs);
+const center = bounds.getCenter();
+
+const map = L.map('map', {
+  center: [center.lat, center.lng],
+  zoom: 20,
+  maxZoom: 22,
+  minZoom: 17,
+  maxBounds: bounds.pad(0.5),
+  maxBoundsViscosity: 1.0
+});
+
+L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
+  attribution: '&copy; Google',
+  maxZoom: 22,
+  bounds: bounds,
+  noWrap: true 
+}).addTo(map);
+
+
+const outer = [
+  [[-90, -180], [-90, 180], [90, 180], [90, -180]] // whole world rectangle
+];
+
+const mask = L.polygon([outer, uniLatLngs], {
+  stroke: false,
+  fillColor: '#011d4a',
+  fillOpacity: 1,
+  interactive: false,
+  fillRule: 'evenodd'
+}).addTo(map);
+
+map.fitBounds(bounds);
+
+function showFeatureByName(featureName) {
+  const target = featureLayers.find(
+    item => item.feature.properties?.name?.toLowerCase() === featureName.toLowerCase()
+  );
+  if (target) {
+    target.layer.fire('click'); // simulate click
+  } else {
+    alert(`${featureName} not found!`);
+  }
+}
+
+
+    // Global variables for navigation
+    const featureLayers = [];
+    let allPoints = [];
+    let startPoint = null;
+    let endPoint = null;
+    let routeLayer = null;
+    let startMarker = null;
+    let endMarker = null;
+
+    // --- Pathfinding variables ---
+    let graph = {};
+    let nodeCoords = [];
+
+    // Helper: distance between two [lat, lng] points
+    function haversine(a, b) {
+      const toRad = x => x * Math.PI / 180;
+      const R = 6371e3;
+      const dLat = toRad(b[0] - a[0]);
+      const dLng = toRad(b[1] - a[1]);
+      const lat1 = toRad(a[0]);
+      const lat2 = toRad(b[0]);
+      const A = Math.sin(dLat/2)**2 + Math.cos(lat1)*Math.cos(lat2)*Math.sin(dLng/2)**2;
+      return R * 2 * Math.atan2(Math.sqrt(A), Math.sqrt(1-A));
+    }
+
+    // Build graph from lines.geojson
+    fetch('map/lines.geojson')
+      .then(res => res.json())
+      .then(data => {
+        L.geoJSON(data, {
+          style: {
+            color: '#5d5d5d',
+            weight: 3
+          },
+          onEachFeature: (feature, layer) => {
+            const name = feature.properties?.name || "Unnamed Line";
+            layer.bindPopup(name);
+          }
+        }).addTo(map);
+
+        // Build graph
+        data.features.forEach(f => {
+          if (f.geometry.type === 'LineString') {
+            const coords = f.geometry.coordinates.map(c => [c[1], c[0]]); // [lat, lng]
+            for (let i = 0; i < coords.length - 1; i++) {
+              const a = coords[i], b = coords[i+1];
+              const aKey = a.join(','), bKey = b.join(',');
+              if (!graph[aKey]) { graph[aKey] = []; nodeCoords.push(a); }
+              if (!graph[bKey]) { graph[bKey] = []; nodeCoords.push(b); }
+              const dist = haversine(a, b);
+              graph[aKey].push({ node: bKey, dist, coord: b, properties: f.properties });
+              graph[bKey].push({ node: aKey, dist, coord: a, properties: f.properties });
+            }
+          }
+        });
+      });
+
+    // Find nearest node in graph to a [lat, lng]
+    function findNearestNode(latlng) {
+      let minDist = Infinity, nearest = null;
+      nodeCoords.forEach(coord => {
+        const d = haversine([latlng.lat, latlng.lng], coord);
+        if (d < minDist) {
+          minDist = d;
+          nearest = coord;
+        }
+      });
+      return nearest ? nearest.join(',') : null;
+    }
+
+    // Dijkstra's algorithm
+    function dijkstra(startKey, endKey) {
+      const dist = {}, prev = {}, Q = new Set(Object.keys(graph));
+      Object.keys(graph).forEach(k => dist[k] = Infinity);
+      dist[startKey] = 0;
+      while (Q.size) {
+        let u = null, min = Infinity;
+        Q.forEach(k => { if (dist[k] < min) { min = dist[k]; u = k; } });
+        if (u === endKey || min === Infinity) break;
+        Q.delete(u);
+        graph[u].forEach(({ node, dist: d }) => {
+          if (Q.has(node)) {
+            const alt = dist[u] + d;
+            if (alt < dist[node]) {
+              dist[node] = alt;
+              prev[node] = u;
+            }
+          }
+        });
+      }
+      // Reconstruct path
+      const path = [];
+      let u = endKey;
+      while (u && prev[u]) { path.unshift(u); u = prev[u]; }
+      if (u === startKey) path.unshift(u);
+      return path;
+    }
+
+    const sidebar = document.getElementById('infoSidebar');
+    const sidebarContent = document.querySelector('.sidebar-content');
+    const closeBtn = document.getElementById('closeSidebar');
+
+    function showFeatureInfo(name,image,description,info) {
+      sidebarContent.innerHTML = `
+        <img src="${image}" alt="${name}">
+        <h2><i class="fa-solid fa-building"></i> ${name}</h2>
+        <p>${description}</p>
+        <button class="get-direction-btn" id="get-direction">Get Direction</button>
+        <div class="info-section" id="infosection"></div>
+      `;
+
+      const infoSection = document.getElementById('infosection');
+
+      if (info && typeof info === "object") {
+        Object.entries(info).forEach(([key, values]) => {
+          // Capitalize key (Rooms → Rooms, labs → Labs)
+          const title = key.charAt(0).toUpperCase() + key.slice(1);
+
+          // Create HTML block
+          const html = `
+            <div class="info-group">
+              <h3>${title}</h3>
+              <ul>${values.map(v => `<li>${v}</li>`).join('')}</ul>
+            </div>
+          `;
+          infoSection.innerHTML += html;
+        });
+      }
+      sidebar.style.display = 'block'; // show sidebar
+    }
+
+    closeBtn.addEventListener('click', () => {
+      document.getElementById("closeSidebar").style.display = 'none';
+      document.getElementById("directionbtn").style.display = 'inline-block';
+      document.getElementById('searchInput').value = '';
+      map.setView(center, 10);
+      sidebar.style.display = 'none';
+      clearRoute();
+    });
+
+    document.getElementById('closedirectionSidebar').addEventListener('click', () => {
+      document.getElementById('startInput').value = '';
+      document.getElementById('destInput').value = '';
+      document.getElementById('directionSidebar').style.display = 'none';
+    });
+
+    document.getElementById('directionbtn').addEventListener('click', () => {
+      document.getElementById('directionSidebar').style.display = 'block';
+      document.getElementById('startInput').focus()
+    });
+
+    document.querySelectorAll(".travel-modes li").forEach(item => {
+      item.addEventListener("click", () => {
+        document.querySelectorAll(".travel-modes li").forEach(li => li.classList.remove("active"));
+        item.classList.add("active");
+      });
+    });
+
+    // Load points.geojson (departments, rooms, etc.)
+    fetch('map/map.geojson')
+      .then(res => res.json())
+      .then(data => {
+        allPoints = data.features;
+        
+        L.geoJSON(data, {
+          pointToLayer: (feature, latlng) => {
+            return L.circleMarker(latlng, {
+              radius: 6,
+              fillColor: 'red',
+              color: '#fff',
+              weight: 1,
+              opacity: 1,
+              fillOpacity: 0.9
+            });
+          },
+
+          style: feature => {
+            const type = feature.geometry.type;
+            if (type === "Polygon") {
+              return {
+                color: "#5d5d5d",        // border color
+                fillColor: "#c3c1bd", // fill color
+                fillOpacity: 0.5,
+                weight: 1
+              };
+            } 
+          },
+
+          onEachFeature: (feature, layer) => {
+            featureLayers.push({ feature, layer });
+            const name = feature.properties?.name || "Unnamed Point";
+            const image = feature.properties?.image || "image/backup.jpg";
+            const description = feature.properties?.description || "Unnamed Point";
+            
+            layer.on('click', () => {
+              const latlng = getPointLatLng(feature);
+              if (latlng) {
+                map.setView(latlng, 19);
+                searchInput.value = feature.properties?.name || '';
+                searchDropdown.style.display = 'none';
+                showFeatureInfo(name,image,description,feature.properties.info)
+                setStartPoint(feature);
+                document.getElementById("closeSidebar").style.display = 'inline-block';
+                document.getElementById("directionbtn").style.display = 'none';
+              }
+            });
+          }
+        }).addTo(map);
+      });
+    
+    function getPointLatLng(feature) {
+      const geometry = feature.geometry;
+      if (geometry.type === 'Point') {
+        return L.latLng(geometry.coordinates[1], geometry.coordinates[0]);
+      } else if (geometry.type === 'Polygon') {
+        // Use the centroid of the polygon
+        const coords = geometry.coordinates[0];
+        let lat = 0, lng = 0;
+        coords.forEach(coord => {
+          lat += coord[1];
+          lng += coord[0];
+        });
+        return L.latLng(lat / coords.length, lng / coords.length);
+      }
+      return null;
+    }
+    
+    // --- Replace calculateRoute to use pathfinding ---
+    function calculateRoute() {
+      if (!startPoint || !endPoint) return;
+      const startLatlng = getPointLatLng(startPoint);
+      const endLatlng = getPointLatLng(endPoint);
+      if (!startLatlng || !endLatlng) return;
+      if (routeLayer) { map.removeLayer(routeLayer); }
+      // Find nearest nodes
+      const startKey = findNearestNode(startLatlng);
+      const endKey = findNearestNode(endLatlng);
+      if (!startKey || !endKey) return;
+      // Find path
+      const pathKeys = dijkstra(startKey, endKey);
+      if (pathKeys.length < 2) return;
+      // Convert keys to latlngs
+      const pathLatLngs = pathKeys.map(k => {
+        const [lat, lng] = k.split(',').map(Number);
+        return L.latLng(lat, lng);
+      });
+      // Add start/end points
+      pathLatLngs.unshift(startLatlng);
+      pathLatLngs.push(endLatlng);
+      routeLayer = L.polyline(pathLatLngs, {
+        color: 'blue',
+        weight: 4,
+        opacity: 1,
+      }).addTo(map);
+      const bounds = L.latLngBounds(pathLatLngs);
+      map.fitBounds(bounds, { padding: [20, 20] });
+
+      let totalDistance = 0;
+      for (let i = 1; i < pathLatLngs.length; i++) {
+        totalDistance += haversine(
+          [pathLatLngs[i-1].lat, pathLatLngs[i-1].lng],
+          [pathLatLngs[i].lat, pathLatLngs[i].lng]
+        );
+      }
+      totalDistance /= 1000;
+
+      const walkingSpeed = 5; // km/h
+      const cyclingSpeed = 15; // km/h
+      const drivingSpeed = 30; // km/h
+
+      const walkingTime = totalDistance / walkingSpeed;
+      const cyclingTime = totalDistance / cyclingSpeed;
+      const drivingTime = totalDistance / drivingSpeed;
+
+      // Format time nicely
+      function formatTime(hours) {
+        const h = Math.floor(hours);
+        const m = Math.round((hours - h) * 60);
+        return `${h}h ${m}m`;
+      }
+
+      // Show in #routeInfo
+      const routeInfo = document.getElementById('routeInfo');
+      routeInfo.style.display = 'block';
+      routeInfo.innerHTML = `
+        <div class="route-distance">Distance: <strong>${totalDistance.toFixed(2)} km</strong></div>
+        <div class="route-time">
+          <span>🚶 Walking: <strong>${formatTime(walkingTime)}</strong></span>
+          <span>🚴 Cycling: <strong>${formatTime(cyclingTime)}</strong></span>
+          <span>🚗 Driving: <strong>${formatTime(drivingTime)}</strong></span>
+        </div>
+      `;
+    }
+    
+    const selectedPoints = document.getElementById('selectedPoints');
+    
+    function setStartPoint(feature) {
+      startPoint = feature;
+      const latlng = getPointLatLng(feature);
+      if (!latlng) return;
+      
+      if (startMarker) {
+        map.removeLayer(startMarker);
+      }
+      
+      startMarker = L.marker(latlng, {
+        icon: L.divIcon({
+          className: 'custom-div-icon',
+          html: '<div><i class="fa-solid fa-location-dot" style="font-size: 26px;color:#007bff;"></i></div>',
+          iconSize: [20, 20],
+          iconAnchor: [10, 10]
+        })
+      }).addTo(map);
+      
+    }
+    
+    function setEndPoint(feature) {
+      endPoint = feature;
+      const latlng = getPointLatLng(feature);
+      if (!latlng) return;
+      
+      if (endMarker) {
+        map.removeLayer(endMarker);
+      }
+      
+      endMarker = L.marker(latlng, {
+        icon: L.divIcon({
+          className: 'custom-div-icon',
+          html: '<div style="background-color: #dc3545; width: 20px; height: 20px; border-radius: 50%; border: 3px solid white;"></div>',
+          iconSize: [20, 20],
+          iconAnchor: [10, 10]
+        })
+      }).addTo(map);
+      
+      calculateRoute();
+    }
+    
+    function clearRoute() {
+      startPoint = null;
+      endPoint = null;
+      
+      if (startMarker) {
+        map.removeLayer(startMarker);
+        startMarker = null;
+      }
+      if (endMarker) {
+        map.removeLayer(endMarker);
+        endMarker = null;
+      }
+      if (routeLayer) {
+        map.removeLayer(routeLayer);
+        routeLayer = null;
+      }
+      
+      selectedPoints.textContent = '';
+    }
+  
+
+      let userMarker = null, accuracyCircle = null, watchId = null;
+
+  function startRealTimeNavigation(destinationLatLng) {
+    if (!navigator.geolocation) {
+      alert("Geolocation is not supported by your browser.");
+      return;
+    }
+    watchId = navigator.geolocation.watchPosition(
+      (pos) => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        const accuracy = pos.coords.accuracy;
+        const userLatLng = L.latLng(lat, lng);
+
+        if (!userMarker) {
+          userMarker = L.marker(userLatLng, {
+            icon: L.divIcon({
+              className: "user-location",
+              html: '<div style="background-color:#007bff;width:18px;height:18px;border-radius:50%;border:2px solid white;"></div>',
+              iconSize: [18, 18],
+              iconAnchor: [9, 9]
+            })
+          }).addTo(map);
+          map.setView(userLatLng, 19);
+        } else {
+          userMarker.setLatLng(userLatLng);
+        }
+
+        startPoint = {
+          geometry: { type: "Point", coordinates: [lng, lat] },
+          properties: { name: "My Location" }
+        };
+
+        if (endPoint) {
+          calculateRoute();
+        }
+
+
+      },
+      (error) => {
+        let reason = "";
+        if (error.code === error.PERMISSION_DENIED) reason = "Permission denied. Allow location access.";
+        else if (error.code === error.POSITION_UNAVAILABLE) reason = "Position unavailable. Turn on GPS or WiFi.";
+        else if (error.code === error.TIMEOUT) reason = "Request timed out. Try again.";
+        else reason = "Unknown error.";
+        document.getElementById("locationStatus").textContent = `❌ Unable to get location: ${reason}`;
+        console.error("Geolocation error:", error);
+      },
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 }
+    );
+  }
+
+  function stopRealTimeNavigation() {
+    if (watchId) navigator.geolocation.clearWatch(watchId);
+    if (userMarker) { map.removeLayer(userMarker); userMarker = null; }
+    if (accuracyCircle) { map.removeLayer(accuracyCircle); accuracyCircle = null; }
+  }
+
+    const locateUserBtn = document.getElementById("locateUserBtn");
+    locateUserBtn.addEventListener("click", () => {
+
+      stopRealTimeNavigation();
+      startRealTimeNavigation(null);
+
+      document.getElementById("locationStatus").textContent =
+          "🟢 Tracking your location. Click on a room/building to set destination.";
+      
+    });
+
+    const searchInput = document.getElementById('searchInput');
+    const searchDropdown = document.getElementById('searchDropdown');
+
+    // Show dropdown when input is focused
+    searchInput.addEventListener('click', () => {
+      searchDropdown.style.display = 'block';
+    });
+
+    // Hide dropdown when clicking outside
+    document.addEventListener('click', (e) => {
+      if (!document.querySelector('.search-container').contains(e.target)) {
+        searchDropdown.style.display = 'none';
+      }
+    });
+
+    searchInput.addEventListener('input', () => {
+      const query = searchInput.value.toLowerCase();
+      if (query.length < 2) {
+        searchDropdown.style.display = 'none';
+        return;
+      }
+      
+      const filteredPoints = allPoints.filter(point => {
+        const name = point.properties?.name || '';
+        return name.toLowerCase().includes(query);
+      });
+      displaySearchResults(filteredPoints);
+    });
+
+    function displaySearchResults(points) {
+      searchDropdown.innerHTML = '';
+      if (points.length === 0) {
+        searchDropdown.innerHTML = '<div class="dropdown-item">No results found</div>';
+      } else {
+        points.forEach(point => {
+          const div = document.createElement('div');
+          div.className = 'dropdown-item';
+          div.innerHTML = `
+            <span class="icon">&#128205;</span>
+            <div class="text">
+              <strong>${point.properties?.name || 'Unnamed Point'}</strong>
+            </div>
+          `;
+          const name = point.properties?.name || "Unnamed Point";
+          const image = point.properties?.image || "image/backup.jpg";
+          const description = point.properties?.description || "Unnamed Point";
+          div.addEventListener('click', () => {
+            const latlng = getPointLatLng(point);
+            if (latlng) {
+              map.setView(latlng, 19);
+              searchInput.value = point.properties?.name || '';
+              searchDropdown.style.display = 'none';
+              showFeatureInfo(name,image,description,feature.properties.info)
+              setStartPoint(point);
+              document.getElementById("closeSidebar").style.display = 'inline-block';
+              document.getElementById("directionbtn").style.display = 'none';
+            }
+          });
+          searchDropdown.appendChild(div);
+        });
+      }
+      searchDropdown.style.display = 'block';
+    }
+
+    const startInput = document.getElementById("startInput");
+    const destInput = document.getElementById("destInput");
+    
+    
+
+      function renderSuggestions(inputType,suggestedPlace) {
+        const Suggestions = document.getElementById("suggested-places");
+        const otherSelected = inputType === "start" ? endPoint : startPoint;
+        Suggestions.innerHTML = "";
+        console.log(suggestedPlace)
+        suggestedPlace.forEach(place => {
+          const name = place.properties?.name;
+          // Do not show if already selected in other input
+          if (otherSelected && name === otherSelected.name) return;
+
+          const li = document.createElement("div");
+          li.className = "suggestion-item";
+          li.innerHTML = `
+            <span class="icon">
+              <i class="${place.properties.type === "current" ? "fas fa-map-marker-alt" : "fas fa-clock"}"></i>
+            </span>
+            <div class="text">
+              <strong>${place.properties.name}</strong>
+              ${place.properties.description ? `<small>${place.properties.description}</small>` : ""}
+            </div>
+          `;
+          li.addEventListener("click", () => {
+            if (inputType === "start") {
+              startInput.value = name;
+              setStartPoint(place)
+            } else {
+              destInput.value = name;
+              setEndPoint(place)
+            }
+          });
+          Suggestions.appendChild(li);
+        });
+        Suggestions.style.display = "block";
+      }
+
+      function getRandomSuggestedPlaces() {
+        const myLocation = {
+          properties: {
+            name: "Your Location",
+            type: "current"
+          }
+        };
+
+        const randomPoints = allPoints
+          .filter(point => point.properties?.name)
+          .sort(() => Math.random() - 0.5)
+          .slice(0, 4);
+          
+        return [myLocation, ...randomPoints];
+      }
+
+
+      startInput.addEventListener("focus", () => renderSuggestions("start",getRandomSuggestedPlaces()));
+      destInput.addEventListener("focus", () => renderSuggestions("dest",getRandomSuggestedPlaces()));
+    
+
+      startInput.addEventListener('input', () => {
+        const query = startInput.value.toLowerCase();
+        if (query.length < 2) {
+          document.getElementById("suggested-places").innerHTML = "";
+          return;
+        }
+        const filteredPoints = [
+          { properties: { name: "Your Location", type: "current" } },
+          ...allPoints.filter(point => {
+            const name = point.properties?.name || '';
+            return name.toLowerCase().includes(query.toLowerCase());
+          })
+        ];
+        renderSuggestions("start",filteredPoints);
+      });
+
+      destInput.addEventListener('input', () => {
+        const query = destInput.value.toLowerCase();
+        if (query.length < 2) {
+          document.getElementById("suggested-places").innerHTML = "";
+          return;
+        }
+        
+        const filteredPoints = [
+          { properties: { name: "Your Location", type: "current" } },
+          ...allPoints.filter(point => {
+            const name = point.properties?.name || '';
+            return name.toLowerCase().includes(query.toLowerCase());
+          })
+        ];
+        renderSuggestions("dest",filteredPoints);
+      });
+
+  </script>
+</body>
+</html>
